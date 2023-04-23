@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package service;
+
+option go_package = "../internal/communication_grpc";
+
+/*
+protoc --go_out=. --go-grpc_out=. --grpc-gateway_out=. *.proto
+*/
+
+message Meg {
+    string from = 1;
+    string to = 2;
+    string txt = 3;
+}
+
+message Ack {
+    bool ack = 1;
+}
+
+service ChatService {
+    rpc SendMessage(Meg) returns (Ack) {}
+}
