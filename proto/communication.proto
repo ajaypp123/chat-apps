@@ -9,15 +9,13 @@ protoc --go_out=. --go-grpc_out=. --grpc-gateway_out=. *.proto
 */
 
 message Meg {
-    string from = 1;
-    string to = 2;
-    string txt = 3;
-}
-
-message Ack {
-    bool ack = 1;
+    string id = 1;
+    string userFrom = 2;
+    string userTo = 3;
+    string txt = 4;
+    bool success = 5;
 }
 
 service ChatService {
-    rpc SendMessage(Meg) returns (Ack) {}
+    rpc SendMessage(stream Meg) returns (stream Meg) {}
 }
