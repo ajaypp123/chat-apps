@@ -30,4 +30,9 @@ go run cmd/client/client.go
 ```
 - Once the client is started, enter the username when prompted. After registration, enter the sender's name and message to send the message. The client will also receive incoming messages.
 
+# Docker build
+```
+docker-compose up --build
+```
+
 Feel free to experiment and add more features to the application as needed.
