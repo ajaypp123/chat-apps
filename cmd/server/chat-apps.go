@@ -18,43 +18,59 @@ type server struct {
 }
 
 func (s *server) SendMessage(stream pb.ChatService_SendMessageServer) error {
+	// Read the first message from the stream which should contain the sender's information.
+	msg, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+
+	// Add the sender's connection to the user-to-connection mapping.
+	s.userConnMap[msg.GetUserFrom()] = stream
+
+	msg.Success = true
+	if err := stream.Send(msg); err != nil {
+		return err
+	}
+	fmt.Printf("Connection added for: %s\n", msg.GetUserFrom())
 
 	// Receive messages from the client stream
 	for {
-		sMsg, err := stream.Recv()
+		msg, err := stream.Recv()
 		if err == io.EOF {
-			// Client stream is closed, so we're done
+			// The client has closed the stream. Remove the sender's connection from the user-to-connection mapping.
+			delete(s.userConnMap, msg.UserFrom)
 			return nil
 		}
 		if err != nil {
 			return err
 		}
+		fmt.Printf("Received message: %v\n", msg)
 
-		// update/override fromUserConn
-		s.userConnMap[sMsg.GetUserFrom()] = stream
-		if sMsg.GetUserTo() == "" {
-			return nil
-		}
-
-		// Get the userTo's connection from the map
-		conn, ok := s.userConnMap[sMsg.GetUserTo()]
+		// Get the recipient's connection from the user-to-connection mapping.
+		conn, ok := s.userConnMap[msg.GetUserTo()]
 		if !ok {
-			return fmt.Errorf("user %s is not connected", sMsg.GetUserTo())
+			// If the recipient is not connected, send an error back to the sender.
+			msg.Txt = msg.GetUserTo() + " user is not connected."
+			if err := stream.Send(msg); err != nil {
+				return err
+			}
+			continue
 		}
 
-		// Send the message to the userTo
-		if err := conn.Send(sMsg); err != nil {
+		// Forward the message to the recipient.
+		if err := conn.Send(msg); err != nil {
 			return err
 		}
 
-		// Wait for ack from the userTo
-		rMsg, err := conn.Recv()
+		// Wait for an ack from the recipient.
+		ack, err := conn.Recv()
 		if err != nil {
 			return err
 		}
 
-		// Send the ack to the fromUser
-		if err := stream.Send(rMsg); err != nil {
+		msg.Success = true
+		// Send the ack back to the sender.
+		if err := stream.Send(ack); err != nil {
 			return err
 		}
 	}
@@ -77,9 +93,31 @@ func main() {
 	)
 
 	// register ChatService server to gRPC server
-	pb.RegisterChatServiceServer(grpcServer, &server{})
+	pb.RegisterChatServiceServer(grpcServer, &server{
+		userConnMap: make(map[string]pb.ChatService_SendMessageServer),
+	})
 
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
+
+	/*
+
+		// Create a channel to receive OS signals
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt)
+
+		// Start gRPC server in a goroutine
+		go func() {
+			if err := grpcServer.Serve(lis); err != nil {
+				log.Fatalf("Failed to start gRPC server: %v", err)
+			}
+		}()
+
+		// Wait for SIGINT signal
+		<-sigChan
+
+		// Stop gRPC server gracefully
+		grpcServer.GracefulStop()
+	*/
 }
