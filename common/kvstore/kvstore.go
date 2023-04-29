@@ -1,37 +1,33 @@
-package common
+package kvstore
 
-import "fmt"
+import "errors"
 
 type KVStoreI interface {
-	Get(key interface{}) (interface{}, error)
-	Put(key interface{}, value interface{}) error
-	Delete(key interface{}) error
+	Get(key string) (string, error)
+	Put(key string, value string) error
+	Delete(key string) error
 }
 
-type KVStore struct {
-	store map[interface{}]interface{}
-}
+var kv KVStoreI = nil
 
-func NewKVStore() *KVStore {
-	return &KVStore{
-		store: make(map[interface{}]interface{}),
+// Init name for memary is mem and redis for redis
+// this is used to set default kv store
+func Init(name string) error {
+	if name == "mem" {
+		kv = GetMemKVStore()
+		return nil
 	}
+	return errors.New("invalid kv name")
 }
 
-func (s *KVStore) Get(key interface{}) (interface{}, error) {
-	value, ok := s.store[key]
-	if !ok {
-		return nil, fmt.Errorf("key not found")
-	}
-	return value, nil
+func Get(key string) (string, error) {
+	return kv.Get(key)
 }
 
-func (s *KVStore) Put(key interface{}, value interface{}) error {
-	s.store[key] = value
-	return nil
+func Put(key string, value string) error {
+	return kv.Put(key, value)
 }
 
-func (s *KVStore) Delete(key interface{}) error {
-	delete(s.store, key)
-	return nil
+func Delete(key string) error {
+	return kv.Delete(key)
 }
