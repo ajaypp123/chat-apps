@@ -1,39 +1,57 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/ajaypp123/chat-apps/common"
+	"github.com/ajaypp123/chat-apps/common/appcontext"
 	"github.com/ajaypp123/chat-apps/common/kvstore"
 	"github.com/ajaypp123/chat-apps/common/logger"
+	"github.com/ajaypp123/chat-apps/internal/server/controller"
 	"github.com/ajaypp123/chat-apps/internal/server/services"
+	"github.com/gorilla/mux"
 )
 
 func main() {
+	ctx := appcontext.DefaultContext()
+	logger.Info(ctx, "Server started at : ", common.GetTimeNow())
+
 	// Create a channel to receive OS signals
-	fmt.Println("Register signal with service")
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// grpc service
-	var chat services.ChatServices
+	var chatService services.ChatServices
 	{
-		chat = services.NewChatServices()
+		chatService = services.NewChatServices()
+		chatService.StartChatService(sigChan)
+		defer chatService.Close()
 	}
-	chat.StartChatService(sigChan)
 
+	router := mux.NewRouter()
+	httpServer := &http.Server{
+		Addr:    ":8080",
+		Handler: router,
+	}
+
+	// define REST endpoints
+	controller.NewUserController(services.NewUserService()).RegisterUserHandler(router)
+
+	if err := httpServer.ListenAndServe(); err != nil {
+		log.Fatalf("Failed to start HTTP server: %v", err)
+	}
 	// Wait for SIGINT signal
 	<-sigChan
 }
 
 // init is self called and will initialise all services
 func init() {
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "index", "server")
+	ctx := appcontext.DefaultContext()
 
 	// log initalized
 	err := logger.NewLogger(ctx, "server.log", logger.DEBUG)
@@ -41,15 +59,10 @@ func init() {
 		panic(fmt.Sprintf("Failed to create logger: %v", err))
 	}
 
-	// logger.Info(ctx, "Starting application...")
-
-	// config
 	if err := common.ConfigService().Init(); err != nil {
 		logger.Error(ctx, "Failed to setup config, exit from service. err: %v", err)
 		os.Exit(1)
 	}
-
-	// fmt.Println(common.ConfigService().GetValue("port"))
 
 	// kvstore
 	if err := kvstore.Init("mem"); err != nil {

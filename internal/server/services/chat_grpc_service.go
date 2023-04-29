@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/ajaypp123/chat-apps/common"
+	"github.com/ajaypp123/chat-apps/common/appcontext"
 	"github.com/ajaypp123/chat-apps/common/kvstore"
+	"github.com/ajaypp123/chat-apps/common/logger"
 	pb "github.com/ajaypp123/chat-apps/internal/communication_grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -18,9 +20,11 @@ import (
 
 type ChatServices interface {
 	StartChatService(sigChan chan os.Signal)
+	Close()
 }
 
 type ChatServicesImpl struct {
+	grpcServer *grpc.Server
 	pb.UnimplementedChatServiceServer
 }
 
@@ -36,41 +40,35 @@ func (chat *ChatServicesImpl) StartChatService(sigChan chan os.Signal) {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer(
+	chat.grpcServer = grpc.NewServer(
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			MaxConnectionIdle:     5 * time.Minute,
 			MaxConnectionAge:      30 * time.Minute,
 			MaxConnectionAgeGrace: 5 * time.Minute,
 			Time:                  1 * time.Minute,
-			Timeout:               20 * time.Second,
+			Timeout:               3 * time.Second,
 		}),
 	)
 
 	// register ChatService server to gRPC server
-	pb.RegisterChatServiceServer(grpcServer, &ChatServicesImpl{})
+	chat.registerGrpcServer(chat.grpcServer)
 
 	go func() {
-		if err := grpcServer.Serve(lis); err != nil {
+		if err := chat.grpcServer.Serve(lis); err != nil {
 			log.Fatalf("Failed to start gRPC server: %v", err)
 		}
 	}()
 }
 
+func (chat *ChatServicesImpl) Close() {
+	// Gracefully stop the gRPC server
+	chat.grpcServer.GracefulStop()
+}
+
 func (chat *ChatServicesImpl) SendMessage(stream pb.ChatService_SendMessageServer) error {
-	// Read the first message from the stream which should contain the sender's information.
-	msg, err := stream.Recv()
-	if err != nil {
+	if err := chat.firstConnRequest(stream); err != nil {
 		return err
 	}
-
-	// Add the sender's connection to the user-to-connection mapping.
-	chat.storeGrpcConnection(msg.GetUserFrom(), stream)
-
-	msg.Success = true
-	if err := stream.Send(msg); err != nil {
-		return err
-	}
-	fmt.Printf("Connection added for: %s\n", msg.GetUserFrom())
 
 	// Receive messages from the client stream
 	for {
@@ -113,6 +111,32 @@ func (chat *ChatServicesImpl) SendMessage(stream pb.ChatService_SendMessageServe
 			return err
 		}
 	}
+}
+
+func (chat *ChatServicesImpl) firstConnRequest(stream pb.ChatService_SendMessageServer) error {
+	// TODO verify user for first time connection
+
+	// Read the first message from the stream which should contain the sender's information.
+	msg, err := stream.Recv()
+	if err != nil {
+		logger.Error(appcontext.DefaultContext(), "%v", err)
+		return err
+	}
+
+	// Add the sender's connection to the user-to-connection mapping.
+	chat.storeGrpcConnection(msg.GetUserFrom(), stream)
+
+	msg.Success = true
+	if err := stream.Send(msg); err != nil {
+		return err
+	}
+	logger.Info(appcontext.DefaultContext(), "Connection added for: %s\n", msg.GetUserFrom())
+	return nil
+}
+
+func (chat *ChatServicesImpl) registerGrpcServer(grpcServer *grpc.Server) {
+	// register ChatService server to gRPC server
+	pb.RegisterChatServiceServer(grpcServer, &ChatServicesImpl{})
 }
 
 func (chat *ChatServicesImpl) storeGrpcConnection(user string, stream pb.ChatService_SendMessageServer) {

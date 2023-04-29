@@ -3,6 +3,8 @@ module github.com/ajaypp123/chat-apps
 go 1.19
 
 require (
+	github.com/google/uuid v1.3.0
+	github.com/gorilla/mux v1.8.0
 	github.com/spf13/cast v1.5.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
