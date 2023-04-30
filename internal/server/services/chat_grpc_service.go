@@ -1,71 +1,30 @@
 package services
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"log"
-	"net"
-	"os"
-	"time"
 
-	"github.com/ajaypp123/chat-apps/common"
 	"github.com/ajaypp123/chat-apps/common/appcontext"
-	"github.com/ajaypp123/chat-apps/common/kvstore"
 	"github.com/ajaypp123/chat-apps/common/logger"
 	pb "github.com/ajaypp123/chat-apps/internal/communication_grpc"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 )
 
-type ChatServices interface {
-	StartChatService(sigChan chan os.Signal)
-	Close()
-}
-
 type ChatServicesImpl struct {
-	grpcServer *grpc.Server
 	pb.UnimplementedChatServiceServer
 }
 
-func NewChatServices() ChatServices {
-	return &ChatServicesImpl{}
-}
+// TODO replace with redis
+var uMap map[string]pb.ChatService_SendMessageServer
 
-func (chat *ChatServicesImpl) StartChatService(sigChan chan os.Signal) {
-	// create gRPC server
-	port := common.ConfigService().GetValue("grpc_port")
-	lis, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-
-	chat.grpcServer = grpc.NewServer(
-		grpc.KeepaliveParams(keepalive.ServerParameters{
-			MaxConnectionIdle:     5 * time.Minute,
-			MaxConnectionAge:      30 * time.Minute,
-			MaxConnectionAgeGrace: 5 * time.Minute,
-			Time:                  1 * time.Minute,
-			Timeout:               3 * time.Second,
-		}),
-	)
-
-	// register ChatService server to gRPC server
-	chat.registerGrpcServer(chat.grpcServer)
-
-	go func() {
-		if err := chat.grpcServer.Serve(lis); err != nil {
-			log.Fatalf("Failed to start gRPC server: %v", err)
-		}
-	}()
-}
-
-func (chat *ChatServicesImpl) Close() {
-	// Gracefully stop the gRPC server
-	chat.grpcServer.GracefulStop()
+func RegisterChatServices(grpcServer *grpc.Server) {
+	uMap = make(map[string]pb.ChatService_SendMessageServer)
+	pb.RegisterChatServiceServer(grpcServer, &ChatServicesImpl{})
 }
 
 func (chat *ChatServicesImpl) SendMessage(stream pb.ChatService_SendMessageServer) error {
+
 	if err := chat.firstConnRequest(stream); err != nil {
 		return err
 	}
@@ -88,38 +47,30 @@ func (chat *ChatServicesImpl) SendMessage(stream pb.ChatService_SendMessageServe
 		if err != nil {
 			// If the recipient is not connected, send an error back to the sender.
 			msg.Txt = msg.GetUserTo() + " user is not connected."
+			fmt.Printf("user is not connected: %v\n", msg)
 			if err := stream.Send(msg); err != nil {
 				return err
 			}
 			continue
 		}
+		fmt.Println("Conn Found....")
 
 		// Forward the message to the recipient.
 		if err := conn.Send(msg); err != nil {
 			return err
 		}
-
-		// Wait for an ack from the recipient.
-		ack, err := conn.Recv()
-		if err != nil {
-			return err
-		}
-
-		msg.Success = true
-		// Send the ack back to the sender.
-		if err := stream.Send(ack); err != nil {
-			return err
-		}
+		fmt.Println("Message send to client")
 	}
 }
 
 func (chat *ChatServicesImpl) firstConnRequest(stream pb.ChatService_SendMessageServer) error {
 	// TODO verify user for first time connection
-
+	ctx := appcontext.GetDefaultContext()
+	ctx.AddValue("index", "server")
 	// Read the first message from the stream which should contain the sender's information.
 	msg, err := stream.Recv()
 	if err != nil {
-		logger.Error(appcontext.DefaultContext(), "%v", err)
+		logger.Error(ctx, "%v", err)
 		return err
 	}
 
@@ -130,36 +81,23 @@ func (chat *ChatServicesImpl) firstConnRequest(stream pb.ChatService_SendMessage
 	if err := stream.Send(msg); err != nil {
 		return err
 	}
-	logger.Info(appcontext.DefaultContext(), "Connection added for: %s\n", msg.GetUserFrom())
+	logger.Info(ctx, "Connection added for: %s\n", msg.GetUserFrom())
 	return nil
 }
 
-func (chat *ChatServicesImpl) registerGrpcServer(grpcServer *grpc.Server) {
-	// register ChatService server to gRPC server
-	pb.RegisterChatServiceServer(grpcServer, &ChatServicesImpl{})
-}
-
 func (chat *ChatServicesImpl) storeGrpcConnection(user string, stream pb.ChatService_SendMessageServer) {
-	jsonBytes, err := json.Marshal(stream)
-	if err != nil {
-		return
-	}
-	kvstore.Put(user, string(jsonBytes))
+	uMap[user] = stream
 }
 
 func (chat *ChatServicesImpl) removeGrpcConnection(user string) {
-	kvstore.Delete(user)
+	delete(uMap, user)
 }
 
 func (chat *ChatServicesImpl) getGrpcConnection(user string) (pb.ChatService_SendMessageServer, error) {
-	connStr, err := kvstore.Get(user)
-	if err != nil {
-		return nil, err
+	//return conn, nil
+	stream, ok := uMap[user]
+	if !ok {
+		return nil, errors.New("not found")
 	}
-	var conn pb.ChatService_SendMessageServer
-	if err := json.Unmarshal([]byte(connStr), &conn); err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-	return conn, nil
+	return stream, nil
 }

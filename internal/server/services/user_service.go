@@ -9,7 +9,7 @@ import (
 
 type UserServiceI interface {
 	GetUser(ctx context.Context, username string) *models.Response
-	PostUser(ctx context.Context, username, name, phone string) *models.Response
+	PostUser(ctx context.Context, user *models.User) *models.Response
 }
 
 type UserService struct {
@@ -23,6 +23,6 @@ func (u *UserService) GetUser(ctx context.Context, username string) *models.Resp
 	return repos.GetUserRepo().GetUser(ctx, username)
 }
 
-func (u *UserService) PostUser(ctx context.Context, username, name, phone string) *models.Response {
-	return repos.GetUserRepo().PostUser(ctx, username, name, phone)
+func (u *UserService) PostUser(ctx context.Context, user *models.User) *models.Response {
+	return repos.GetUserRepo().PostUser(ctx, user)
 }

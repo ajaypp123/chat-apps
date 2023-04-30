@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -9,6 +8,8 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/ajaypp123/chat-apps/common/appcontext"
 )
 
 type Level int
@@ -43,7 +44,12 @@ type Logger struct {
 
 var log_mapper map[string]*Logger
 
-func NewLogger(ctx context.Context, filename string, level Level) error {
+func NewLogger(ctx *appcontext.AppContext, filename string, level Level) error {
+	index := ctx.GetValue("index").(string)
+	if _, ok := log_mapper[index]; ok {
+		return nil
+	}
+
 	filename, err := getLogFilepath(filename)
 	if err != nil {
 		return err
@@ -65,12 +71,11 @@ func NewLogger(ctx context.Context, filename string, level Level) error {
 		log_mapper = make(map[string]*Logger)
 	}
 
-	index, _ := ctx.Value("index").(string)
 	log_mapper[index] = lg
 	return nil
 }
 
-func logf(ctx context.Context, filename, line string, level Level, format string, args ...interface{}) {
+func logf(ctx *appcontext.AppContext, filename, line string, level Level, format string, args ...interface{}) {
 	index, _ := ctx.Value("index").(string)
 	l := log_mapper[index]
 
@@ -94,22 +99,22 @@ func logf(ctx context.Context, filename, line string, level Level, format string
 	l.file.WriteString(logLine + "\n")
 }
 
-func Info(ctx context.Context, format string, args ...interface{}) {
+func Info(ctx *appcontext.AppContext, format string, args ...interface{}) {
 	_, filename, line, _ := runtime.Caller(1)
 	logf(ctx, filename, strconv.Itoa(line), INFO, format, args...)
 }
 
-func Warn(ctx context.Context, format string, args ...interface{}) {
+func Warn(ctx *appcontext.AppContext, format string, args ...interface{}) {
 	_, filename, line, _ := runtime.Caller(1)
 	logf(ctx, filename, strconv.Itoa(line), WARN, format, args...)
 }
 
-func Debug(ctx context.Context, format string, args ...interface{}) {
+func Debug(ctx *appcontext.AppContext, format string, args ...interface{}) {
 	_, filename, line, _ := runtime.Caller(1)
 	logf(ctx, filename, strconv.Itoa(line), DEBUG, format, args...)
 }
 
-func Error(ctx context.Context, format string, args ...interface{}) {
+func Error(ctx *appcontext.AppContext, format string, args ...interface{}) {
 	_, filename, line, _ := runtime.Caller(1)
 	logf(ctx, filename, strconv.Itoa(line), ERROR, format, args...)
 }

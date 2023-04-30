@@ -57,7 +57,13 @@ curl -XPOST localhost:8080/v1/chatapp/users?name=B&phone=99933333
 curl -XPOST localhost:8080/v1/chatapp/users?name=C&phone=92222222
 
 # check user detail as per need
-curl -XGET localhost:8080/v1/chatapp/users?uid={uid of user}
+curl -X POST localhost:8080/v1/chatapp/users -d '{ "username":"ajuser","name":"bar", "phone": "8098080"}'
+
+{"req_id":"","status":"success","data":{"username":"ajuser","name":"bar","phone":"8098080","secret":"cab3b16f-d9e5-42fb-965d-2321893613de"},"code":200}
+
+curl -XGET localhost:8080/v1/chatapp/users?username=ajuser
+
+{"req_id":"","status":"success","data":{"username":"ajuser","name":"bar","phone":"8098080","secret":"cab3b16f-d9e5-42fb-965d-2321893613de"},"code":200}
 ```
 
 # TODO: There is room to grow for app

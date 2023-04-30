@@ -1,8 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,27 +17,37 @@ import (
 	"github.com/ajaypp123/chat-apps/internal/server/controller"
 	"github.com/ajaypp123/chat-apps/internal/server/services"
 	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
+)
+
+var (
+	httpPort   *string
+	grpcPort   *string
+	listener   net.Listener = nil
+	grpcServer *grpc.Server = nil
 )
 
 func main() {
-	ctx := appcontext.DefaultContext()
+	httpPort = flag.String("http", ":8080", "HTTP server address")
+	grpcPort = flag.String("grpc", ":50051", "Grpc server address")
+	flag.Parse()
+
+	ctx := appcontext.GetDefaultContext()
+	ctx.AddValue("index", "server")
 	logger.Info(ctx, "Server started at : ", common.GetTimeNow())
 
 	// Create a channel to receive OS signals
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGSEGV)
 
 	// grpc service
-	var chatService services.ChatServices
-	{
-		chatService = services.NewChatServices()
-		chatService.StartChatService(sigChan)
-		defer chatService.Close()
-	}
+	setGrpcServer(*grpcPort)
+	services.RegisterChatServices(grpcServer)
+	startGrpcServer()
 
 	router := mux.NewRouter()
 	httpServer := &http.Server{
-		Addr:    ":8080",
+		Addr:    *httpPort,
 		Handler: router,
 	}
 
@@ -45,13 +57,16 @@ func main() {
 	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatalf("Failed to start HTTP server: %v", err)
 	}
+
 	// Wait for SIGINT signal
 	<-sigChan
+	fmt.Println("Exit from:", *httpPort, *grpcPort)
 }
 
 // init is self called and will initialise all services
 func init() {
-	ctx := appcontext.DefaultContext()
+	ctx := appcontext.GetDefaultContext()
+	ctx.AddValue("index", "server")
 
 	// log initalized
 	err := logger.NewLogger(ctx, "server.log", logger.DEBUG)

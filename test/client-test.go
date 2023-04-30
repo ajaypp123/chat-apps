@@ -5,7 +5,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -29,6 +28,7 @@ type Resp struct {
 }
 
 func main() {
+
 	grpcPort := flag.String("grpc", ":50051", "Grpc server address")
 	httpPort := flag.String("http", ":8080", "HTTP server address")
 	flag.Parse()
@@ -47,7 +47,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	var count int64 = 1
 	fmt.Print("Enter your username: ")
 	reader := bufio.NewReader(os.Stdin)
 	user, _ := reader.ReadString('\n')
@@ -82,11 +81,6 @@ func main() {
 		for {
 			msg, err := stream.Recv()
 			if err != nil {
-				md, er := stream.Header()
-				fmt.Println("Error receiving message: ", er, err)
-				for k, v := range md {
-					log.Printf("Metadata[%s]: %s", k, v)
-				}
 				fmt.Println("Error receiving message: ", err)
 			}
 			if msg.UserTo == user {
@@ -96,31 +90,26 @@ func main() {
 		}
 	}()
 
-	for {
+	for i := 0; i < 100; i++ {
 		fmt.Printf("\n\n\nUsername: %s\n\n", services.Data.Username)
 		services.PrintTable()
 		fmt.Printf("\n\n\n")
 
-		fmt.Println(`Enter your choise: 
-			a. Send message
-			b. Show perticular user message
-			c. Refresh
-			d. Create Group *TBD
-			e. Exit`)
-		choise, _ := reader.ReadString('\n')
-		choise = strings.TrimSpace(choise)
-
-		switch choise {
-		case "a":
-			msgId := strconv.FormatInt(count, 10)
-			services.SendMessage(msgId, reader, stream)
-			count += 1
-			fmt.Println("Message send completed")
-		case "b":
-			services.ShowUserMessage(reader)
-		case "c":
-			continue
+		msg := &pb.Meg{
+			Id:       strconv.Itoa(i),
+			UserFrom: "user1",
+			UserTo:   "user1",
+			Txt:      "Hiii " + strconv.Itoa(i),
+			Success:  false,
 		}
+
+		fmt.Printf("\n%s:%s - %s\n", msg.UserFrom, msg.UserTo, msg.Txt)
+
+		// Send the message to the server and wait for a response.
+		if err := stream.Send(msg); err != nil {
+			fmt.Println("Error sending message: ", err)
+		}
+		fmt.Println("Message send done....")
 
 	}
 }

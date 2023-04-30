@@ -3,8 +3,10 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
+	"github.com/ajaypp123/chat-apps/internal/server/models"
 	"github.com/ajaypp123/chat-apps/internal/server/services"
 	"github.com/gorilla/mux"
 )
@@ -36,11 +38,12 @@ func (c *UserController) getUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *UserController) createUser(w http.ResponseWriter, r *http.Request) {
-	// TODO: take from body
-	name := r.URL.Query().Get("name")
-	phone := r.URL.Query().Get("phone")
-	username := r.URL.Query().Get("username")
-	resp := c.userService.PostUser(context.Background(), username, name, phone)
+	var user *models.User
+	if e := json.NewDecoder(r.Body).Decode(&user); e != nil {
+		fmt.Println("failed")
+		return
+	}
+	resp := c.userService.PostUser(context.Background(), user)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")

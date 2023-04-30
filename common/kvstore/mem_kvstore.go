@@ -2,6 +2,7 @@ package kvstore
 
 import (
 	"errors"
+	"time"
 )
 
 type MemKVStore struct {
@@ -29,5 +30,13 @@ func (s *MemKVStore) Put(key string, value string) error {
 
 func (s *MemKVStore) Delete(key string) error {
 	delete(s.store, key)
+	return nil
+}
+
+func (s *MemKVStore) Lock(key string, timeout time.Duration) (bool, error) {
+	return false, nil
+}
+
+func (s *MemKVStore) Unlock(key string) error {
 	return nil
 }
