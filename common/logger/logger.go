@@ -42,11 +42,11 @@ type Logger struct {
 	file     *os.File
 }
 
-var log_mapper map[string]*Logger
+var logMapper map[string]*Logger
 
 func NewLogger(ctx *appcontext.AppContext, filename string, level Level) error {
 	index := ctx.GetValue("index").(string)
-	if _, ok := log_mapper[index]; ok {
+	if _, ok := logMapper[index]; ok {
 		return nil
 	}
 
@@ -59,7 +59,6 @@ func NewLogger(ctx *appcontext.AppContext, filename string, level Level) error {
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %v", err)
 	}
-	defer file.Close()
 
 	lg := &Logger{
 		level:    level,
@@ -67,17 +66,18 @@ func NewLogger(ctx *appcontext.AppContext, filename string, level Level) error {
 		file:     file,
 	}
 
-	if log_mapper == nil {
-		log_mapper = make(map[string]*Logger)
+	if logMapper == nil {
+		logMapper = make(map[string]*Logger)
 	}
 
-	log_mapper[index] = lg
+	logMapper[index] = lg
 	return nil
 }
 
-func logf(ctx *appcontext.AppContext, filename, line string, level Level, format string, args ...interface{}) {
-	index, _ := ctx.Value("index").(string)
-	l := log_mapper[index]
+func logf(ctx *appcontext.AppContext, filename, line string, level Level, message string) {
+	index, _ := ctx.GetValue("index").(string)
+	l := logMapper[index]
+	fmt.Println(l)
 
 	if l.level < level {
 		return
@@ -86,7 +86,6 @@ func logf(ctx *appcontext.AppContext, filename, line string, level Level, format
 	now := time.Now()
 	timeFormat := now.Format("2006/01/02 15:04:05")
 	timestamp := now.Format(time.RFC3339)
-	message := fmt.Sprintf(format, args...)
 	logLine := fmt.Sprintf("%s [%s] %s:%s:%s %s: %s", timeFormat, timestamp, index, filename, line, level, message)
 
 	select {
@@ -95,28 +94,37 @@ func logf(ctx *appcontext.AppContext, filename, line string, level Level, format
 	default:
 	}
 
-	log.Println(logLine) // print on console
-	l.file.WriteString(logLine + "\n")
+	// convert to json
+	log.Println(logLine)
+	if _, err := l.file.WriteString(logLine + "\n"); err != nil {
+		log.Println(err)
+	}
 }
 
-func Info(ctx *appcontext.AppContext, format string, args ...interface{}) {
+func Info(ctx *appcontext.AppContext, args ...interface{}) {
 	_, filename, line, _ := runtime.Caller(1)
-	logf(ctx, filename, strconv.Itoa(line), INFO, format, args...)
+	logf(ctx, filename, strconv.Itoa(line), INFO, fmt.Sprint(args...))
 }
 
-func Warn(ctx *appcontext.AppContext, format string, args ...interface{}) {
+func Warn(ctx *appcontext.AppContext, args ...interface{}) {
 	_, filename, line, _ := runtime.Caller(1)
-	logf(ctx, filename, strconv.Itoa(line), WARN, format, args...)
+	logf(ctx, filename, strconv.Itoa(line), WARN, fmt.Sprint(args...))
 }
 
-func Debug(ctx *appcontext.AppContext, format string, args ...interface{}) {
+func Debug(ctx *appcontext.AppContext, args ...interface{}) {
 	_, filename, line, _ := runtime.Caller(1)
-	logf(ctx, filename, strconv.Itoa(line), DEBUG, format, args...)
+	logf(ctx, filename, strconv.Itoa(line), DEBUG, fmt.Sprint(args...))
 }
 
-func Error(ctx *appcontext.AppContext, format string, args ...interface{}) {
+func Error(ctx *appcontext.AppContext, args ...interface{}) {
 	_, filename, line, _ := runtime.Caller(1)
-	logf(ctx, filename, strconv.Itoa(line), ERROR, format, args...)
+	logf(ctx, filename, strconv.Itoa(line), ERROR, fmt.Sprint(args...))
+}
+
+func Close(ctx *appcontext.AppContext) {
+	index, _ := ctx.GetValue("index").(string)
+	l := logMapper[index]
+	l.file.Close()
 }
 
 func getLogFilepath(filename string) (string, error) {

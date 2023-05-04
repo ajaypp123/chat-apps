@@ -1,6 +1,7 @@
-package main
+package common
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"time"
@@ -9,7 +10,14 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-func setGrpcServer(port string) {
+var (
+	listener   net.Listener = nil
+	GrpcServer *grpc.Server = nil
+)
+
+type GrpcHelper struct{}
+
+func (g *GrpcHelper) SetGrpcServer(port string) *grpc.Server {
 	if listener == nil {
 		lis, err := net.Listen("tcp", port)
 		if err != nil {
@@ -18,8 +26,8 @@ func setGrpcServer(port string) {
 		listener = lis
 	}
 
-	if grpcServer == nil {
-		grpcServer = grpc.NewServer(
+	if GrpcServer == nil {
+		GrpcServer = grpc.NewServer(
 			grpc.KeepaliveParams(keepalive.ServerParameters{
 				MaxConnectionIdle:     5 * time.Minute,
 				MaxConnectionAge:      30 * time.Minute,
@@ -29,13 +37,17 @@ func setGrpcServer(port string) {
 			}),
 		)
 	}
+	return GrpcServer
 }
 
-func startGrpcServer() {
+func (g *GrpcHelper) StartGrpcServer() {
 	go func() {
-		if err := grpcServer.Serve(listener); err != nil {
-			log.Fatalf("Failed to start gRPC server: %v", err)
+		if err := GrpcServer.Serve(listener); err != nil {
+			panic(fmt.Sprintf("Failed to start gRPC server: %v", err))
 		}
 	}()
-	defer grpcServer.GracefulStop()
+}
+
+func (g *GrpcHelper) StopGrpcServer() {
+	GrpcServer.GracefulStop()
 }
