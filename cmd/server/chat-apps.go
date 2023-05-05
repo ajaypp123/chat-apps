@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"github.com/ajaypp123/chat-apps/internal/server/repos"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,7 +11,6 @@ import (
 
 	"github.com/ajaypp123/chat-apps/common"
 	"github.com/ajaypp123/chat-apps/common/appcontext"
-	"github.com/ajaypp123/chat-apps/common/kvstore"
 	"github.com/ajaypp123/chat-apps/common/logger"
 	"github.com/ajaypp123/chat-apps/internal/server/controller"
 	"github.com/ajaypp123/chat-apps/internal/server/services"
@@ -28,23 +27,21 @@ func main() {
 	grpcPort = flag.String("grpc", ":50051", "Grpc server address")
 	flag.Parse()
 
-	ctx := appcontext.GetDefaultContext()
-	ctx.AddValue("index", "server")
+	ctx := appcontext.GetDefaultContext("server", "chat-apps")
 	err := logger.NewLogger(ctx, "server.log", logger.DEBUG)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create logger: %v", err))
 	}
 	logger.Info(ctx, "Server started at :", common.GetTimeNow())
 
-	// Create a channel to receive OS signals
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGSEGV)
-
 	// grpc service
-	grpc_service := common.GrpcHelper{}
-	grpcServer := grpc_service.SetGrpcServer(*grpcPort)
-	services.RegisterChatServices(grpcServer)
-	grpc_service.StartGrpcServer()
+	grpcCtx := ctx.DeepCopy()
+	grpcCtx.AddValue("process", "grpc")
+
+	grpcService := common.GrpcHelper{}
+	grpcServer := grpcService.SetGrpcServer(ctx, *grpcPort)
+	services.RegisterChatServices(grpcCtx, grpcServer)
+	grpcService.StartGrpcServer(ctx)
 
 	router := mux.NewRouter()
 	httpServer := &http.Server{
@@ -53,16 +50,25 @@ func main() {
 	}
 
 	// define REST endpoints
+	controller.NewHealthController().RegisterHealthHandler(router)
 	controller.NewUserController(services.NewUserService()).RegisterUserHandler(router)
 
-	if err := httpServer.ListenAndServe(); err != nil {
-		log.Fatalf("Failed to start HTTP server: %v", err)
-	}
+	// Instantiate server, and listen on specified port.
+	errs := make(chan error)
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGSEGV)
+		errs <- fmt.Errorf("%s", <-c)
+	}()
+
+	go func() {
+		errs <- httpServer.ListenAndServe()
+	}()
 
 	// Wait for SIGINT signal
-	<-sigChan
-	fmt.Println("Exit from:", *httpPort, *grpcPort)
-	grpc_service.StopGrpcServer()
+	logger.Info(ctx, "Exit from server", <-errs)
+	grpcService.StopGrpcServer(ctx)
+	logger.Info(ctx, "Exit from grpc")
 	logger.Close(ctx)
 }
 
@@ -72,8 +78,7 @@ func init() {
 		panic(fmt.Sprintf("Failed to setup config, exit from service. err: %v", err))
 	}
 
-	// kvstore
-	if err := kvstore.Init("mem"); err != nil {
+	if err := repos.InitializeDB(repos.RedisDB); err != nil {
 		panic(fmt.Sprintf("Failed to setup kvstore. err: %v", err))
 	}
 }

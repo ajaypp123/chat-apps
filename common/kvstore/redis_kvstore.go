@@ -8,6 +8,8 @@ import (
 	"github.com/go-redis/redis"
 )
 
+var defaultClient *RedisKVStore
+
 // RedisKVStore implements the KVStoreI interface
 type RedisKVStore struct {
 	client *redis.Client
@@ -16,6 +18,9 @@ type RedisKVStore struct {
 
 // NewRedisKVStore creates a new RedisKVStore instance
 func NewRedisKVStore(addr string, password string, db int) (KVStoreI, error) {
+	if defaultClient != nil {
+		return defaultClient, nil
+	}
 	client := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
@@ -27,7 +32,15 @@ func NewRedisKVStore(addr string, password string, db int) (KVStoreI, error) {
 		return nil, err
 	}
 
-	return &RedisKVStore{client: client}, nil
+	defaultClient = &RedisKVStore{client: client}
+	return defaultClient, nil
+}
+
+func GetRedisKVStore() (KVStoreI, error) {
+	if defaultClient != nil {
+		return defaultClient, nil
+	}
+	return nil, errors.New("KVStore is not initialised")
 }
 
 // Get retrieves the value for a given key from Redis

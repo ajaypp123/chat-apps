@@ -15,7 +15,7 @@ type KVStoreI interface {
 
 var kv KVStoreI = nil
 
-// Init name for memary is mem and redis for redis
+// Init name for memory is mem and redis for redis
 // this is used to set default kv store
 func Init(name string) error {
 	if name == "mem" {

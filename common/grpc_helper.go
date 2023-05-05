@@ -2,8 +2,10 @@ package common
 
 import (
 	"fmt"
-	"log"
+	"github.com/ajaypp123/chat-apps/common/appcontext"
+	"github.com/ajaypp123/chat-apps/common/logger"
 	"net"
+	"os"
 	"time"
 
 	"google.golang.org/grpc"
@@ -17,11 +19,12 @@ var (
 
 type GrpcHelper struct{}
 
-func (g *GrpcHelper) SetGrpcServer(port string) *grpc.Server {
+func (g *GrpcHelper) SetGrpcServer(ctx *appcontext.AppContext, port string) *grpc.Server {
 	if listener == nil {
 		lis, err := net.Listen("tcp", port)
 		if err != nil {
-			log.Fatalf("failed to listen: %v", err)
+			logger.Error(ctx, "failed to listen to port ", port, err)
+			os.Exit(1)
 		}
 		listener = lis
 	}
@@ -40,14 +43,16 @@ func (g *GrpcHelper) SetGrpcServer(port string) *grpc.Server {
 	return GrpcServer
 }
 
-func (g *GrpcHelper) StartGrpcServer() {
+func (g *GrpcHelper) StartGrpcServer(ctx *appcontext.AppContext) {
 	go func() {
 		if err := GrpcServer.Serve(listener); err != nil {
-			panic(fmt.Sprintf("Failed to start gRPC server: %v", err))
+			logger.Error(ctx, "Failed to start gRPC server: ", err)
 		}
+		fmt.Println("stop")
 	}()
 }
 
-func (g *GrpcHelper) StopGrpcServer() {
+func (g *GrpcHelper) StopGrpcServer(ctx *appcontext.AppContext) {
+	logger.Info(ctx, "Stopping grpc server")
 	GrpcServer.GracefulStop()
 }

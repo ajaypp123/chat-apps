@@ -1,12 +1,9 @@
 {
     "server_id": "0",
     "grpc_port": "50051",
-    "kvstore": {
-        "name": "redis",
-        "redis": {
-            "addr": "localhost:6379",
-            "pass": "", 
-            "db": "0"
-        }
+    "redis": {
+        "addr": "localhost:6379",
+        "pass": "",
+        "db": "0"
     }
 }

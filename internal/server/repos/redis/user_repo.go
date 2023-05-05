@@ -1,9 +1,10 @@
-package repos
+package redis
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/ajaypp123/chat-apps/common/appcontext"
+	"github.com/ajaypp123/chat-apps/common/logger"
+	"github.com/ajaypp123/chat-apps/internal/server/repos"
 	"net/http"
 
 	"github.com/ajaypp123/chat-apps/common"
@@ -11,23 +12,18 @@ import (
 	"github.com/ajaypp123/chat-apps/internal/server/models"
 )
 
-type UserRepoI interface {
-	GetUser(ctx context.Context, username string) *models.Response
-	PostUser(ctx context.Context, user *models.User) *models.Response
-}
-
 type UserRepo struct {
-	// TODO: Create repository to store to database
+	// TODO: Add dao layer
 	kv kvstore.KVStoreI
 }
 
 var userRepo *UserRepo = nil
 
-func GetUserRepo() UserRepoI {
+func GetUserRepo(ctx *appcontext.AppContext) repos.UserRepoI {
 	if userRepo == nil {
-		kvs, err := kvstore.NewRedisKVStore("localhost:6379", "", 0)
+		kvs, err := kvstore.GetRedisKVStore()
 		if err != nil {
-			fmt.Println(err)
+			logger.Error(ctx, err)
 			return nil
 		}
 		userRepo = &UserRepo{
@@ -37,7 +33,9 @@ func GetUserRepo() UserRepoI {
 	return userRepo
 }
 
-func (u *UserRepo) GetUser(ctx context.Context, username string) *models.Response {
+func (u *UserRepo) GetUser(ctx *appcontext.AppContext, username string) *models.Response {
+	logMsg := "UserRepo::GetUser username: " + username + " "
+	logger.Info(ctx, "entry ", logMsg)
 	errRes := &models.Response{
 		Code:   http.StatusNotFound,
 		Status: models.Failed,
@@ -45,15 +43,18 @@ func (u *UserRepo) GetUser(ctx context.Context, username string) *models.Respons
 	}
 	uStr, err := u.kv.Get(username)
 	if err != nil {
-		fmt.Println(err)
+		logger.Error(ctx, logMsg, err)
 		return errRes
 	}
-	fmt.Println(uStr)
+
+	logger.Debug(ctx, logMsg, "User detail ", uStr)
+
 	var usr models.User
 	if err := json.Unmarshal([]byte(uStr), &usr); err != nil {
-		fmt.Println(err)
+		logger.Error(ctx, logMsg, err)
 		return errRes
 	}
+	logger.Info(ctx, "exit ", logMsg)
 	return &models.Response{
 		Code:   http.StatusOK,
 		Status: models.Successed,
@@ -61,7 +62,9 @@ func (u *UserRepo) GetUser(ctx context.Context, username string) *models.Respons
 	}
 }
 
-func (u *UserRepo) PostUser(ctx context.Context, user *models.User) *models.Response {
+func (u *UserRepo) PostUser(ctx *appcontext.AppContext, user *models.User) *models.Response {
+	logMsg := "UserRepo::PostUser username: " + user.Username + " "
+	logger.Info(ctx, "entry ", logMsg)
 	errRes := &models.Response{
 		Code:   http.StatusNotFound,
 		Status: models.Failed,
@@ -71,14 +74,15 @@ func (u *UserRepo) PostUser(ctx context.Context, user *models.User) *models.Resp
 	user.Secret = common.GetUUID()
 	uByte, err := json.Marshal(user)
 	if err != nil {
-		fmt.Println(err)
+		logger.Error(ctx, logMsg, err)
 		return errRes
 	}
 
 	if err := u.kv.Put(user.Username, string(uByte)); err != nil {
-		fmt.Println(err)
+		logger.Error(ctx, logMsg, err)
 		return errRes
 	}
+	logger.Info(ctx, "exit ", logMsg)
 	return &models.Response{
 		Code:   http.StatusOK,
 		Status: models.Successed,
