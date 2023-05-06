@@ -76,14 +76,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Wait for an ack from the server
+	/*// Wait for an ack from the server
 	ack, err := stream.Recv()
 	if err != nil {
 		fmt.Println("failed to receive ack: ", err)
 		os.Exit(1)
-	}
+	}*/
 
-	fmt.Printf("Connection Request: User %s, registered successfuly with server. msg: %v \n\n\n", user, ack)
+	fmt.Printf("Connection Request: User %s, registered successfuly with server \n\n\n", connectMsg)
 
 	go func() {
 		for {

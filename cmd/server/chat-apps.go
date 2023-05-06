@@ -76,6 +76,8 @@ func main() {
 	// Wait for SIGINT signal
 	logger.Debug(ctx, "Exit from server", <-errs)
 	grpcService.StopGrpcServer(ctx)
+	steam, _ := streamer.GetStreamingService()
+	steam.StopListening()
 	logger.Info(ctx, "Exit from application ....")
 	logger.Close(ctx)
 }

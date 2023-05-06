@@ -1,18 +1,20 @@
 package streamer
 
 import (
-	"context"
 	"errors"
 )
 
 var subscribers []Subscriber
 
 type Subscriber interface {
-	ReceiveMsg(ctx context.Context, msg interface{})
+	ReceiveMsg(msg interface{})
 }
 
 type StreamingServiceI interface {
+	RegisterSubscriber(sub Subscriber)
 	PublishMessage(topic, partition string, message string) error
+	StartListening(topic, partition string) error
+	StopListening()
 }
 
 var defaultClient StreamingServiceI

@@ -22,7 +22,7 @@ var userRepo *UserRepo = nil
 
 func GetUserRepo(ctx *appcontext.AppContext) repos.UserRepoI {
 	if userRepo == nil {
-		kvs, err := kvstore.GetRedisKVStore()
+		kvs, err := kvstore.GetKVStore()
 		if err != nil {
 			logger.Error(ctx, err)
 			return nil

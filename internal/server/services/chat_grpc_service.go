@@ -22,7 +22,15 @@ type ChatServicesImpl struct {
 	stream streamer.StreamingServiceI
 }
 
+type ChatSub struct {
+	ctx *appcontext.AppContext
+}
+
 var uMap map[string]pb.ChatService_SendMessageServer
+
+func GetSubscriber(ctx *appcontext.AppContext) streamer.Subscriber {
+	return &ChatSub{ctx: ctx}
+}
 
 func RegisterChatServices(grpcCtx *appcontext.AppContext, grpcServer *grpc.Server) error {
 	kv, err := kvstore.GetKVStore()
@@ -42,7 +50,40 @@ func RegisterChatServices(grpcCtx *appcontext.AppContext, grpcServer *grpc.Serve
 		prefix: "chat-apps/cache/connection/",
 		stream: stream,
 	})
+
+	topic := common.ConfigService().GetValue("streaming.topic")
+	partition := common.ConfigService().GetValue("streaming.partition")
+	sub := GetSubscriber(grpcCtx)
+	stream.RegisterSubscriber(sub)
+	err = stream.StartListening(topic, partition)
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+func (c *ChatSub) ReceiveMsg(msg interface{}) {
+	ctx := c.ctx
+	logMsg := "ChatSub::ReceiveMsg "
+	logger.Info(ctx, logMsg, "entry")
+
+	var pbMsg pb.Meg
+	err := json.Unmarshal([]byte(msg.(string)), &pbMsg)
+	if err != nil {
+		logger.Error(ctx, logMsg, "Failed to convert message ", msg, err)
+		return
+	}
+
+	stream, ok := uMap[pbMsg.GetUserTo()]
+	if !ok {
+		logger.Error(ctx, logMsg, "user: ", pbMsg.GetUserTo(), " may be not connected, add message in database...")
+		// TODO: handle close connectiions
+	}
+	err = stream.Send(&pbMsg)
+	if err != nil {
+		logger.Error(ctx, logMsg, "failed to send message, err: ", err)
+		return
+	}
 }
 
 func (chat *ChatServicesImpl) SendMessage(stream pb.ChatService_SendMessageServer) error {
@@ -153,8 +194,8 @@ func (chat *ChatServicesImpl) publishMessage(ctx *appcontext.AppContext, msg *pb
 		logger.Error(ctx, logMsg, "failed to publish message. Unknown sender, err: ", err, msg)
 		return false, nil
 	}
-	var conn *models.ConnectionDetail
-	if err := json.Unmarshal([]byte(strConn), conn); err != nil {
+	var conn models.ConnectionDetail
+	if err := json.Unmarshal([]byte(strConn), &conn); err != nil {
 		logger.Error(ctx, "failed to parse message. err: ", err)
 		return false, nil
 	}
