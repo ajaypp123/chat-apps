@@ -51,7 +51,7 @@ func AddNewMessage(port, username string, message string) error {
 	n, ok := table[username]
 	if !ok {
 		// User not in table, get their info from API
-		resp, err := http.Get(fmt.Sprintf("http://localhost"+port+"/v1/chatapp/users?username=%s", username))
+		resp, err := http.Get(fmt.Sprintf("http://localhost"+port+"/v1/chat-apps/users?username=%s", username))
 		if err != nil {
 			return fmt.Errorf("failed to get user info: %v", err)
 		}

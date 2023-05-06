@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/ajaypp123/chat-apps/common/streamer"
 	"github.com/ajaypp123/chat-apps/internal/server/repos"
 	"net/http"
 	"os"
@@ -27,7 +28,11 @@ func main() {
 	grpcPort = flag.String("grpc", ":50051", "Grpc server address")
 	flag.Parse()
 
-	ctx := appcontext.GetDefaultContext("server", "chat-apps")
+	kv := make(map[string]string)
+	kv["index"] = "server"
+	kv["process"] = "chat-apps"
+	kv["id"] = common.ConfigService().GetValue("server_id")
+	ctx := appcontext.GetDefaultContext(kv)
 	err := logger.NewLogger(ctx, "server.log", logger.DEBUG)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create logger: %v", err))
@@ -40,7 +45,10 @@ func main() {
 
 	grpcService := common.GrpcHelper{}
 	grpcServer := grpcService.SetGrpcServer(ctx, *grpcPort)
-	services.RegisterChatServices(grpcCtx, grpcServer)
+	err = services.RegisterChatServices(grpcCtx, grpcServer)
+	if err != nil {
+		panic(err)
+	}
 	grpcService.StartGrpcServer(ctx)
 
 	router := mux.NewRouter()
@@ -66,9 +74,9 @@ func main() {
 	}()
 
 	// Wait for SIGINT signal
-	logger.Info(ctx, "Exit from server", <-errs)
+	logger.Debug(ctx, "Exit from server", <-errs)
 	grpcService.StopGrpcServer(ctx)
-	logger.Info(ctx, "Exit from grpc")
+	logger.Info(ctx, "Exit from application ....")
 	logger.Close(ctx)
 }
 
@@ -80,5 +88,12 @@ func init() {
 
 	if err := repos.InitializeDB(repos.RedisDB); err != nil {
 		panic(fmt.Sprintf("Failed to setup kvstore. err: %v", err))
+	}
+
+	addr := common.ConfigService().GetValue("redis.addr")
+	pass := common.ConfigService().GetValue("redis.pass")
+	db := 1 // 0 default and 1 for connection
+	if _, err := streamer.NewRedisStreamingService(addr, pass, db); err != nil {
+		panic(fmt.Sprintf("Failed to setup streamer. err: %v", err))
 	}
 }

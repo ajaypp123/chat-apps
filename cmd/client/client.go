@@ -32,6 +32,14 @@ func main() {
 	grpcPort := flag.String("grpc", ":50051", "Grpc server address")
 	httpPort := flag.String("http", ":8080", "HTTP server address")
 	flag.Parse()
+
+	fmt.Print("Enter your username: ")
+	reader := bufio.NewReader(os.Stdin)
+	user, _ := reader.ReadString('\n')
+	user = strings.TrimSpace(user)
+	fmt.Println("Fetching Data")
+	services.FetchUserData(*httpPort, user)
+
 	conn, err := grpc.Dial("localhost"+*grpcPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		fmt.Println("Failed to connect to server: ", err)
@@ -47,13 +55,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	go func() {
+		<-stream.Context().Done()
+		fmt.Println("Stream closed")
+	}()
+
 	var count int64 = 1
-	fmt.Print("Enter your username: ")
-	reader := bufio.NewReader(os.Stdin)
-	user, _ := reader.ReadString('\n')
-	user = strings.TrimSpace(user)
-	fmt.Println("Fetching Data")
-	services.FetchUserData(*httpPort, user)
 
 	connectMsg := &pb.Meg{
 		Id:       "0",

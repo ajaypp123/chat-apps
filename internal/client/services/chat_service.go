@@ -12,7 +12,7 @@ import (
 )
 
 func FetchUserData(port, username string) {
-	resp, err := http.Get(fmt.Sprintf("http://localhost"+port+"/v1/chatapp/users?username=%s", username))
+	resp, err := http.Get(fmt.Sprintf("http://localhost"+port+"/v1/chat-apps/users?username=%s", username))
 	if err != nil {
 		fmt.Printf("failed to get user info: %v", err)
 		os.Exit(1)

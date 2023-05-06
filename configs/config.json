@@ -5,5 +5,9 @@
         "addr": "localhost:6379",
         "pass": "",
         "db": "0"
+    },
+    "streaming": {
+        "topic": "msg_pipeline-",
+        "partition": "1"
     }
 }

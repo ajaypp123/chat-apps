@@ -14,7 +14,8 @@ import (
 
 type UserRepo struct {
 	// TODO: Add dao layer
-	kv kvstore.KVStoreI
+	prefix string
+	kv     kvstore.KVStoreI
 }
 
 var userRepo *UserRepo = nil
@@ -27,7 +28,8 @@ func GetUserRepo(ctx *appcontext.AppContext) repos.UserRepoI {
 			return nil
 		}
 		userRepo = &UserRepo{
-			kv: kvs,
+			kv:     kvs,
+			prefix: "database/user/",
 		}
 	}
 	return userRepo
@@ -41,7 +43,7 @@ func (u *UserRepo) GetUser(ctx *appcontext.AppContext, username string) *models.
 		Status: models.Failed,
 		Data:   "User not found",
 	}
-	uStr, err := u.kv.Get(username)
+	uStr, err := u.kv.Get(u.prefix + username)
 	if err != nil {
 		logger.Error(ctx, logMsg, err)
 		return errRes
@@ -78,7 +80,7 @@ func (u *UserRepo) PostUser(ctx *appcontext.AppContext, user *models.User) *mode
 		return errRes
 	}
 
-	if err := u.kv.Put(user.Username, string(uByte)); err != nil {
+	if err := u.kv.Put(u.prefix+user.Username, string(uByte)); err != nil {
 		logger.Error(ctx, logMsg, err)
 		return errRes
 	}

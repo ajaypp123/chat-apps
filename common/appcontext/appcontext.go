@@ -20,13 +20,16 @@ func GetNewContext() *AppContext {
 	return ctx
 }
 
-func GetDefaultContext(index, process string) *AppContext {
+func GetDefaultContext(data map[string]string) *AppContext {
 	if DefaultContext != nil {
 		return DefaultContext
 	}
+
 	ctx := GetNewContext()
-	ctx.AddValue("process", process)
-	ctx.AddValue("index", index)
+	for key, val := range data {
+		ctx.AddValue(key, val)
+	}
+
 	DefaultContext = ctx
 	return ctx
 }

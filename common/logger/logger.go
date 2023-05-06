@@ -77,7 +77,6 @@ func NewLogger(ctx *appcontext.AppContext, filename string, level Level) error {
 func logf(ctx *appcontext.AppContext, filename, line string, level Level, message string) {
 	index, _ := ctx.GetValue("index").(string)
 	l := logMapper[index]
-	fmt.Println(l)
 
 	if l.level < level {
 		return
@@ -95,7 +94,7 @@ func logf(ctx *appcontext.AppContext, filename, line string, level Level, messag
 	}
 
 	// convert to json
-	log.Println(logLine)
+	log.Println(logLine, ctx)
 	if _, err := l.file.WriteString(logLine + "\n"); err != nil {
 		log.Println(err)
 	}

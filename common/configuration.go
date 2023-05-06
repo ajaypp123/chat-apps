@@ -21,3 +21,11 @@ func (c *Config) Init() error {
 func (c *Config) GetValue(key string) string {
 	return cast.ToString(viper.Get(key))
 }
+
+func (c *Config) GetNodeId() string {
+	return cast.ToString(viper.Get("server_id"))
+}
+
+func (c *Config) GetStreamDetail() string {
+	return cast.ToString(viper.Get("server_id"))
+}

@@ -1,14 +1,14 @@
 package kvstore
 
 import (
+	"context"
 	"errors"
+	"github.com/redis/go-redis/v9"
 	"sync"
 	"time"
-
-	"github.com/go-redis/redis"
 )
 
-var defaultClient *RedisKVStore
+var ctx = context.Background()
 
 // RedisKVStore implements the KVStoreI interface
 type RedisKVStore struct {
@@ -18,9 +18,6 @@ type RedisKVStore struct {
 
 // NewRedisKVStore creates a new RedisKVStore instance
 func NewRedisKVStore(addr string, password string, db int) (KVStoreI, error) {
-	if defaultClient != nil {
-		return defaultClient, nil
-	}
 	client := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
@@ -28,19 +25,16 @@ func NewRedisKVStore(addr string, password string, db int) (KVStoreI, error) {
 	})
 
 	// Check if Redis is connected
-	if err := client.Ping().Err(); err != nil {
+	if err := client.Ping(ctx).Err(); err != nil {
 		return nil, err
 	}
 
-	defaultClient = &RedisKVStore{client: client}
-	return defaultClient, nil
-}
-
-func GetRedisKVStore() (KVStoreI, error) {
-	if defaultClient != nil {
-		return defaultClient, nil
+	cli := &RedisKVStore{client: client}
+	if defaultClient == nil {
+		defaultClient = cli
 	}
-	return nil, errors.New("KVStore is not initialised")
+
+	return cli, nil
 }
 
 // Get retrieves the value for a given key from Redis
@@ -48,7 +42,7 @@ func (s *RedisKVStore) Get(key string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	value, err := s.client.Get(key).Result()
+	value, err := s.client.Get(ctx, key).Result()
 	if err == redis.Nil {
 		return "", errors.New("key not found")
 	} else if err != nil {
@@ -63,7 +57,7 @@ func (s *RedisKVStore) Put(key string, value string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.client.Set(key, value, 0).Err()
+	return s.client.Set(ctx, key, value, 0).Err()
 }
 
 // Delete deletes the value for a given key from Redis
@@ -71,7 +65,7 @@ func (s *RedisKVStore) Delete(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.client.Del(key).Err()
+	return s.client.Del(ctx, key).Err()
 }
 
 // Lock obtains a lock on a given key using Redis
@@ -79,7 +73,7 @@ func (s *RedisKVStore) Lock(key string, timeout time.Duration) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.client.SetNX(key, "locked", timeout).Result()
+	return s.client.SetNX(ctx, key, "locked", timeout).Result()
 }
 
 // Unlock releases a lock on a given key using Redis
@@ -87,5 +81,5 @@ func (s *RedisKVStore) Unlock(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.client.Del(key).Err()
+	return s.client.Del(ctx, key).Err()
 }
