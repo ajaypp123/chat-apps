@@ -1,5 +1,9 @@
 # chat-apps
-chat-apps is a basic chat application that enables one on one communication between users. It uses gRPC for communication and is built with Golang. The application stores the gRPC session in Redis and can be run in a distributed client-server architecture.
+This is a distributed chat application built using Golang and gRPC. The application allows multiple clients to connect to multiple servers and exchange messages in real-time.
+
+The servers use Redis to store client information, allowing clients to connect to any server and maintain their session. The application also uses Kafka for Pub/Sub messaging, allowing servers to communicate with each other and route messages to the appropriate client.
+
+The project includes a proto file defining the gRPC service, as well as server and client implementations. The client includes a simple command-line interface for sending and receiving messages.
 
 # Features
 - One on one chat
