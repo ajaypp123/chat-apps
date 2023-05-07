@@ -77,7 +77,7 @@ func (c *ChatSub) ReceiveMsg(msg interface{}) {
 	stream, ok := uMap[pbMsg.GetUserTo()]
 	if !ok {
 		logger.Error(ctx, logMsg, "user: ", pbMsg.GetUserTo(), " may be not connected, add message in database...")
-		// TODO: handle close connectiions
+		// TODO: handle close connections
 	}
 	err = stream.Send(&pbMsg)
 	if err != nil {
@@ -105,6 +105,7 @@ func (chat *ChatServicesImpl) SendMessage(stream pb.ChatService_SendMessageServe
 
 		msg, err := chat.receive(ctx, stream)
 		if err == io.EOF {
+			// stream is closed
 			break
 		}
 		if err != nil {

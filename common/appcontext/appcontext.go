@@ -76,3 +76,7 @@ func (c *AppContext) String() string {
 	data, _ := c.marshalJSON()
 	return string(data)
 }
+
+func (c *AppContext) GetData() map[string]interface{} {
+	return c.kv
+}
