@@ -1,10 +1,25 @@
-FROM golang:1.16.5-alpine3.14 AS builder
-WORKDIR /app
+# Use the official Golang image as the base image
+FROM golang:1.18 AS builder
+# Set the working directory inside the container
+WORKDIR /chat-server
+# Copy the source code into the container
 COPY . .
-RUN go mod download
-RUN go build -o client ./cmd/client/client.go
 
-FROM alpine:3.14
-WORKDIR /app
-COPY --from=builder /app/client .
+# Build the Go binary with the necessary flags
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./build/client -mod vendor ./cmd/client/client.go
+
+# Use a small Alpine-based image as the base image for the final container
+FROM alpine:latest AS deploy
+# Set the working directory inside the container
+WORKDIR /chat-server
+RUN mkdir ./configs/
+
+# Copy the built binary from the builder container
+COPY --from=builder /chat-server/build/client .
+COPY --from=builder /chat-server/configs/config.json ./configs/
+
+# Expose the port that the server listens on
+EXPOSE 8080
+
+# Start the server when the container starts
 CMD ["./client"]
