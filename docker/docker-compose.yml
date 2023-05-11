@@ -1,18 +1,64 @@
 version: '3'
+
 services:
-  server:
-    build: .
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
     ports:
-      - "50051:50051"
-  client1:
-    build: .
-    command: ["./client"]
-    tty: true
-  client2:
-    build: .
-    command: ["./client"]
-    tty: true
-  client3:
-    build: .
-    command: ["./client"]
-    tty: true
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  chat-apps-1:
+    build:
+      context: ../../chat-apps
+      dockerfile: server.Dockerfile
+    #image: chat-apps:latest
+    container_name: chat-apps-1
+    restart: always
+    volumes:
+      - ../configs/config.json:/chat-server/configs/config.json
+    environment:
+      - REDIS_ADDR=redis:6379
+    ports:
+      - "50051:50050"
+      - "8081:8080"
+    networks:
+      - chat_network
+
+  chat-apps-2:
+    build:
+      context: ../../chat-apps
+      dockerfile: server.Dockerfile
+    #image: chat-apps:latest
+    container_name: chat-apps-2
+    restart: always
+    volumes:
+      - ../configs/config.json:/chat-server/configs/config.json
+    environment:
+      - REDIS_ADDR=redis:6379
+    ports:
+      - "50052:50050"
+      - "8082:8080"
+    networks:
+      - chat_network
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "3000:3000"
+      - "50055:50055"
+    volumes:
+      - ../configs/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - chat-apps-1
+      - chat-apps-2
+    networks:
+      - chat_network
+
+networks:
+  chat_network:
+
+volumes:
+  redis_data:
