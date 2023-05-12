@@ -19,7 +19,7 @@ COPY --from=builder /chat-server/build/chat-server .
 COPY --from=builder /chat-server/configs/config.json ./configs/
 
 # Expose the port that the server listens on
-EXPOSE 8080
+#EXPOSE 8080
 
 # Start the server when the container starts
-CMD ["./chat-server -grpc 50050 -http 8080"]
+CMD ["./chat-server", "-grpc", ":50050", "-http", ":8080"]
