@@ -20,23 +20,19 @@ chat-apps is a basic chat application that enables one on one communication betw
 # Instructions for Running the Application
 - Start the server by running the following command in the terminal:
 ```
-go run cmd/server/chat-app.go
+cd chat-apps/docker
+docker-compose up -d
 ```
 
-- Start multiple instances of the client for each user. Run the following command for each instance:
+- Start client
+```
+go run cmd/client/client.go -grpc :50055 -http :3000
+```
 
-```
-go run cmd/client/client.go
-```
 - Once the client is started, enter the username when prompted. After registration, enter the sender's name and message to send the message. The client will also receive incoming messages.
 
-# Docker build
-```
-docker-compose up --build
-```
 
 Feel free to experiment and add more features to the application as needed.
-
 
 # Start and use tools for startup guide
 
@@ -68,3 +64,5 @@ curl -XGET localhost:8080/v1/chat-apps/users?username=ajuser
 1. queue for dead message not verified
 2. group message
 3. unread message utility
+
+username should be metadata so that during failure, we will be able to close connection

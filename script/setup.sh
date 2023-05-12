@@ -9,7 +9,7 @@ echo "Script path is: $(pwd)"
 setup() {
     destroy
     mkdir -p logs
-    docker-compose -f $(pwd)/docker/docker-compose.yml -p docker up  > logs/docker.log 2>&1 &
+    docker-compose -f ./docker/docker-compose.yml -p docker up  > logs/docker.log 2>&1 &
     echo "Application has been set up."
 
     echo "Run:"
@@ -18,8 +18,9 @@ setup() {
 
 # Define the function for destroying the application
 destroy() {
-    docker-compose -f $(pwd)/docker/docker-compose.yml -p docker down
+    docker-compose -f ./docker/docker-compose.yml -p docker down
     docker rmi -f chat-apps:latest
+    echo > logs/server.log
     echo "Application has been destroyed."
 }
 

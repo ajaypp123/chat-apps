@@ -5,8 +5,8 @@ services:
     image: redis:latest
     container_name: redis_kv
     restart: always
-    #ports:
-    #  - "6379:6379"
+    ports:
+      - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -20,7 +20,7 @@ services:
     container_name: chat-apps-1
     restart: always
     volumes:
-      - ../configs/config_container.json:/chat-server/configs/config.json
+      - ../configs/config_container1.json:/chat-server/configs/config.json
       - ../logs/:/chat-server/logs/
     environment:
       - REDIS_ADDR=redis:6379
@@ -42,7 +42,7 @@ services:
     container_name: chat-apps-2
     restart: always
     volumes:
-      - ../configs/config_container.json:/chat-server/configs/config.json
+      - ../configs/config_container2.json:/chat-server/configs/config.json
       - ../logs/:/chat-server/logs/
     #ports:
     #  - "50052:50050"
