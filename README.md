@@ -1,5 +1,9 @@
 # chat-apps
-chat-apps is a basic chat application that enables one on one communication between users. It uses gRPC for communication and is built with Golang. The application stores the gRPC session in Redis and can be run in a distributed client-server architecture.
+This is a distributed chat application built using Golang and gRPC. The application allows multiple clients to connect to multiple servers and exchange messages in real-time.
+
+The servers use Redis to store client information, allowing clients to connect to any server and maintain their session. The application also uses Kafka for Pub/Sub messaging, allowing servers to communicate with each other and route messages to the appropriate client.
+
+The project includes a proto file defining the gRPC service, as well as server and client implementations. The client includes a simple command-line interface for sending and receiving messages.
 
 ## Features
 - One on one chat
@@ -60,7 +64,23 @@ go mod vendor
 
 1. start server and create multiple user
 ```
+<<<<<<< HEAD
 go run cmd/server/chat-apps.go -grpc :50050 -http :3000
+=======
+go run cmd/server/chat-apps.go
+
+# create users
+curl -XPOST localhost:8080/v1/chat-apps/users?username=A
+
+# check user detail as per need
+curl -X POST localhost:8080/v1/chat-apps/users -d '{ "username":"ajuser","name":"bar", "phone": "8098080"}'
+
+{"req_id":"","status":"success","data":{"username":"ajuser","name":"bar","phone":"8098080","secret":"cab3b16f-d9e5-42fb-965d-2321893613de"},"code":200}
+
+curl -XGET localhost:8080/v1/chat-apps/users?username=ajuser
+
+{"req_id":"","status":"success","data":{"username":"ajuser","name":"bar","phone":"8098080","secret":"cab3b16f-d9e5-42fb-965d-2321893613de"},"code":200}
+>>>>>>> origin/main
 ```
 
 1. register users
