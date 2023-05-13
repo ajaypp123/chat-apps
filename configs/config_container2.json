@@ -1,0 +1,13 @@
+{
+"server_id": "1",
+"grpc_port": "50051",
+"redis": {
+"addr": "redis:6379",
+"pass": "",
+"db": "0"
+},
+"streaming": {
+"topic": "msg_pipeline-",
+"partition": "1"
+}
+}

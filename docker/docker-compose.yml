@@ -1,18 +1,75 @@
 version: '3'
+
 services:
-  server:
-    build: .
+  redis:
+    image: redis:latest
+    container_name: redis_kv
+    restart: always
     ports:
-      - "50051:50051"
-  client1:
-    build: .
-    command: ["./client"]
-    tty: true
-  client2:
-    build: .
-    command: ["./client"]
-    tty: true
-  client3:
-    build: .
-    command: ["./client"]
-    tty: true
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      chat_network:
+
+  chat-apps-1:
+    build:
+      context: ../../chat-apps
+      dockerfile: docker/server.Dockerfile
+    image: chat-apps:latest
+    container_name: chat-apps-1
+    restart: always
+    volumes:
+      - ../configs/config_container1.json:/chat-server/configs/config.json
+      - ../logs/:/chat-server/logs/
+    environment:
+      - REDIS_ADDR=redis:6379
+    #ports:
+    #  - "50051:50050"
+    #  - "8081:8080"
+    depends_on:
+      - redis
+    networks:
+      chat_network:
+
+  chat-apps-2:
+    build:
+      context: ../../chat-apps
+      dockerfile: docker/server.Dockerfile
+    environment:
+      - REDIS_ADDR=redis:6379
+    image: chat-apps:latest
+    container_name: chat-apps-2
+    restart: always
+    volumes:
+      - ../configs/config_container2.json:/chat-server/configs/config.json
+      - ../logs/:/chat-server/logs/
+    #ports:
+    #  - "50052:50050"
+    #  - "8082:8080"
+    depends_on:
+      - redis
+    networks:
+      chat_network:
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "3000:3000"      # rest_backend
+      - "50055:50055"    # grpc_backend
+    volumes:
+      - ../configs/nginx.conf:/etc/nginx/nginx.conf
+      - ../logs/:/var/log/nginx/
+    depends_on:
+      - chat-apps-1
+      - chat-apps-2
+    networks:
+      chat_network:
+
+networks:
+  chat_network:
+    ipam:
+      driver: default
+
+volumes:
+  redis_data:

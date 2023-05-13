@@ -19,3 +19,5 @@
 # Editor
 /.idea
 /.vscode
+
+/build

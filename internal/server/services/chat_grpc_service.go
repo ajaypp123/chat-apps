@@ -77,7 +77,8 @@ func (c *ChatSub) ReceiveMsg(msg interface{}) {
 	stream, ok := uMap[pbMsg.GetUserTo()]
 	if !ok {
 		logger.Error(ctx, logMsg, "user: ", pbMsg.GetUserTo(), " may be not connected, add message in database...")
-		// TODO: handle close connectiions
+		// TODO: handle close connections
+		return
 	}
 	err = stream.Send(&pbMsg)
 	if err != nil {
@@ -92,10 +93,13 @@ func (chat *ChatServicesImpl) SendMessage(stream pb.ChatService_SendMessageServe
 	logger.Debug(ctx, "entry", logMsg)
 	errCount := 0
 
-	go func() {
-		<-stream.Context().Done()
-		logger.Info(ctx, "StreamMessages stream closed: ", ctx.Err())
-	}()
+	done := stream.Context().Done()
+
+	//go func() {
+	//	<-done
+	//	logger.Info(ctx, "StreamMessages stream closed: ", ctx.Err())
+	//	// Close the message channel to signal the loop to exit
+	//}()
 
 	// Receive messages from the client stream
 	for {
@@ -103,26 +107,34 @@ func (chat *ChatServicesImpl) SendMessage(stream pb.ChatService_SendMessageServe
 			break
 		}
 
-		msg, err := chat.receive(ctx, stream)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			logger.Warn(ctx, logMsg, " Failed to parse message: ", msg, err)
-			continue
-		}
+		select {
+		case <-done:
+			logger.Info(ctx, logMsg, "Stream is closed")
+			return nil
+		default:
+			msg, err := chat.receive(ctx, stream)
+			if err == io.EOF {
+				// stream is closed
+				return nil
+			}
+			if err != nil {
+				logger.Warn(ctx, logMsg, " Failed to parse message: ", msg, err)
+				continue
+			}
 
-		// publish message
-		ok, err := chat.publishMessage(ctx, msg)
-		if err != nil {
-			errCount = errCount + 1
-		}
-		if !ok {
-			logger.Warn(ctx, logMsg, " Failed to publish message: ", msg)
+			// publish message
+			logger.Info(ctx, logMsg, " publish message ", msg)
+			ok, err := chat.publishMessage(ctx, msg)
+			if err != nil {
+				errCount = errCount + 1
+			}
+			if !ok {
+				logger.Warn(ctx, logMsg, " Failed to publish message: ", msg)
+			}
 		}
 	}
 
-	return errors.New("failed for streaming")
+	return nil
 }
 
 func (chat *ChatServicesImpl) receive(ctx *appcontext.AppContext, stream pb.ChatService_SendMessageServer) (*pb.Meg, error) {

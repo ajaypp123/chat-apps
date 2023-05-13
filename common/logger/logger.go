@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -74,6 +75,15 @@ func NewLogger(ctx *appcontext.AppContext, filename string, level Level) error {
 	return nil
 }
 
+type logMsg struct {
+	LocalTime  string                 `json:"local_time"`
+	GlobalTime string                 `json:"global_time"`
+	Metadata   map[string]interface{} `json:"metadata"`
+	File       string                 `json:"file"`
+	Level      string                 `json:"level"`
+	Message    string                 `json:"message"`
+}
+
 func logf(ctx *appcontext.AppContext, filename, line string, level Level, message string) {
 	index, _ := ctx.GetValue("index").(string)
 	l := logMapper[index]
@@ -85,7 +95,15 @@ func logf(ctx *appcontext.AppContext, filename, line string, level Level, messag
 	now := time.Now()
 	timeFormat := now.Format("2006/01/02 15:04:05")
 	timestamp := now.Format(time.RFC3339)
-	logLine := fmt.Sprintf("%s [%s] %s:%s:%s %s: %s", timeFormat, timestamp, index, filename, line, level, message)
+	lgMsg := &logMsg{
+		LocalTime:  timeFormat,
+		GlobalTime: timestamp,
+		Metadata:   ctx.GetData(),
+		File:       filename + line,
+		Level:      level.String(),
+		Message:    message,
+	}
+	//logLine := fmt.Sprintf("%s [%s] %s:%s:%s %s: %s", timeFormat, timestamp, index, filename, line, level, message)
 
 	select {
 	case <-ctx.Done():
@@ -93,9 +111,9 @@ func logf(ctx *appcontext.AppContext, filename, line string, level Level, messag
 	default:
 	}
 
-	// convert to json
-	log.Println(logLine, ctx)
-	if _, err := l.file.WriteString(logLine + "\n"); err != nil {
+	jsMsg, _ := json.Marshal(lgMsg)
+	log.Println(string(jsMsg))
+	if _, err := l.file.WriteString(string(jsMsg) + "\n"); err != nil {
 		log.Println(err)
 	}
 }
