@@ -30,7 +30,7 @@ cd chat-apps/docker
 docker-compose up -d
 ```
 
-1. Register users by sending POST requests to the following endpoint:
+2. Register users by sending POST requests to the following endpoint:
 ```shell
 curl -X POST localhost:3000/v1/chat-apps/users -d '{ "username":"user1","name":"bar", "phone": "8098080"}'
 
@@ -41,12 +41,12 @@ curl -X POST localhost:3000/v1/chat-apps/users -d '{ "username":"user3","name":"
 curl -XGET localhost:3000/v1/chat-apps/users?username=user1
 ```
 
-1. Start the client by running the following command in the terminal:
+3. Start the client by running the following command in the terminal:
 ```
 go run cmd/client/client.go -grpc :50055 -http :3000
 ```
 
-1. Once the client is started, enter the username when prompted. After registration, enter the sender's name and message to send the message. The client will also receive incoming messages.
+4. Once the client is started, enter the username when prompted. After registration, enter the sender's name and message to send the message. The client will also receive incoming messages.
 
 ## Instructions for Running the Application without Docker
 
@@ -62,28 +62,12 @@ go mod tidy
 go mod vendor
 ```
 
-1. start server and create multiple user
+2. Start server and create multiple user
 ```
-<<<<<<< HEAD
 go run cmd/server/chat-apps.go -grpc :50050 -http :3000
-=======
-go run cmd/server/chat-apps.go
-
-# create users
-curl -XPOST localhost:8080/v1/chat-apps/users?username=A
-
-# check user detail as per need
-curl -X POST localhost:8080/v1/chat-apps/users -d '{ "username":"ajuser","name":"bar", "phone": "8098080"}'
-
-{"req_id":"","status":"success","data":{"username":"ajuser","name":"bar","phone":"8098080","secret":"cab3b16f-d9e5-42fb-965d-2321893613de"},"code":200}
-
-curl -XGET localhost:8080/v1/chat-apps/users?username=ajuser
-
-{"req_id":"","status":"success","data":{"username":"ajuser","name":"bar","phone":"8098080","secret":"cab3b16f-d9e5-42fb-965d-2321893613de"},"code":200}
->>>>>>> origin/main
 ```
 
-1. register users
+3. Register users by sending POST requests to the following endpoint:
 ```shell
 curl -X POST localhost:3000/v1/chat-apps/users -d '{ "username":"user1","name":"bar", "phone": "8098080"}'
 
@@ -94,12 +78,12 @@ curl -X POST localhost:3000/v1/chat-apps/users -d '{ "username":"user3","name":"
 curl -XGET localhost:3000/v1/chat-apps/users?username=user1
 ```
 
-1. Start client
+4. Start client
 ```
 go run cmd/client/client.go -grpc :50055 -http :3000
 ```
 
-1. Once the client is started, enter the username when prompted. After registration, enter the sender's name and message to send the message. The client will also receive incoming messages.
+5. Once the client is started, enter the username when prompted. After registration, enter the sender's name and message to send the message. The client will also receive incoming messages.
 
 
 # TODO: There is room to grow for app
